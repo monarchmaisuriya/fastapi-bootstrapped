@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = ""
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
-    REDIS_URI = f"redis://{f'{REDIS_USER}:{REDIS_PASSWORD}@' if REDIS_USER and REDIS_PASSWORD else ''}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
     # CORS settings
     CORS_ORIGINS: str = "*"  # Comma-separated list of allowed origins
