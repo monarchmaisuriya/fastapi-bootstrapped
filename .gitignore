@@ -13,7 +13,7 @@ __pycache__/
 venv/
 env/
 .venv/
-.env/
+.env
 
 # FastAPI specific
 *.sqlite3
