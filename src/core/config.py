@@ -1,8 +1,13 @@
+from pydantic import (
+    PostgresDsn,
+    computed_field,
+)
+from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "FastAPI Bootstrapped"  # Project name
+    PROJECT_NAME: str = "FastAPI Bootstrapped"
     VERSION: str = "0.1.0"
 
     # Environment settings
@@ -35,12 +40,37 @@ class Settings(BaseSettings):
     # PostgreSQL settings
     POSTGRESQL_USER: str = ""
     POSTGRESQL_PASSWORD: str = ""
-    POSTGRESQL_HOST: str = ""
+    POSTGRESQL_HOST: str = "localhost"
     POSTGRESQL_PORT: int = 5432
-    POSTGRESQL_DB: str = ""
+    POSTGRESQL_DB: str = "fastapi"
     POSTGRESQL_POOL_SIZE: int = 5
     POSTGRESQL_MAX_OVERFLOW: int = 10
-    POSTGRESQL_URI: str = f"postgresql://{POSTGRESQL_USER}:{POSTGRESQL_PASSWORD}@{POSTGRESQL_HOST}:{POSTGRESQL_PORT}/{POSTGRESQL_DB}"
+
+    @computed_field
+    @property
+    def POSTGRES_URI(self) -> PostgresDsn:
+        if (
+            self.ENV == "production"
+            and self.POSTGRESQL_USER
+            and self.POSTGRESQL_PASSWORD
+        ):
+            # Use full credentials for production
+            return MultiHostUrl.build(
+                scheme="postgresql+psycopg",
+                username=self.POSTGRESQL_USER,
+                password=self.POSTGRESQL_PASSWORD,
+                host=self.POSTGRESQL_HOST,
+                port=self.POSTGRESQL_PORT,
+                path=self.POSTGRESQL_DB,
+            )
+        else:
+            # In development, skip username/password and connect via local peer
+            return MultiHostUrl.build(
+                scheme="postgresql+psycopg",
+                host=self.POSTGRESQL_HOST,
+                port=self.POSTGRESQL_PORT,
+                path=self.POSTGRESQL_DB,
+            )
 
     class Config:
         env_file = ".env"

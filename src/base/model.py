@@ -32,7 +32,7 @@ class SoftDeleteMixin(SQLModel):
         self.deleted_at = None
 
 
-class BaseModel(TimestampMixin, SoftDeleteMixin):
+class BaseModel(TimestampMixin, SoftDeleteMixin, MetadataMixin):
     id: str | None = Field(
         default_factory=lambda: str(uuid.uuid4()), primary_key=True, index=True
     )

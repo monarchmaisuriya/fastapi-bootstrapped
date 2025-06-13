@@ -1,13 +1,17 @@
 import logging
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
+from sqlmodel import select
+from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
-from src.core.config import DATABASE_URI
+from src.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+DATABASE_URI = str(settings.POSTGRES_URI)
 
 # Create async engine with connection pooling
 engine = create_async_engine(
@@ -28,13 +32,19 @@ AsyncSessionLocal = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-async def create_db_and_tables():
-    """Create database tables."""
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+max_tries = 60 * 5  # 5 minutes
+wait_seconds = 1
 
 
+@retry(
+    stop=stop_after_attempt(max_tries),
+    wait=wait_fixed(wait_seconds),
+    before=before_log(logger, logging.INFO),
+    after=after_log(logger, logging.WARN),
+)
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
     async with AsyncSessionLocal() as session:
@@ -48,14 +58,23 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-async def check_database_connection() -> bool:
+@retry(
+    stop=stop_after_attempt(max_tries),
+    wait=wait_fixed(wait_seconds),
+    before=before_log(logger, logging.INFO),
+    after=after_log(logger, logging.WARN),
+)
+async def check_database_connection(db_engine: Engine) -> bool:
     """Health check for database connection."""
     try:
-        async with AsyncSessionLocal() as session:
-            await session.execute("SELECT 1")
+        AsyncSessionLocalCheck = async_sessionmaker(
+            db_engine, class_=AsyncSession, expire_on_commit=False
+        )
+        async with AsyncSessionLocalCheck() as session:
+            # Try to create session to check if DB is awake
+            await session.execute(select(1))
+            logger.info("Database health check successful.")
             return True
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return False
-    finally:
-        await session.close()

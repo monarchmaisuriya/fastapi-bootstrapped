@@ -1,11 +1,11 @@
 from datetime import datetime
 from enum import Enum
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
-from src.base.model import MetadataMixin, SoftDeleteMixin, TimestampMixin
+from src.base.model import BaseModel
 
 
 class UserRole(str, Enum):
@@ -13,38 +13,45 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 
-class UserBase(SQLModel):
+# Unified ORM + Shared Pydantic Model
+class User(BaseModel, table=True):
     email: str = Field(index=True, unique=True, max_length=320)
     first_name: str = Field(max_length=100)
     last_name: str = Field(max_length=100)
     role: UserRole = Field(
         default=UserRole.USER,
         sa_type=SAEnum(UserRole),
-        description="User role options",
         index=True,
+        description="User role options",
     )
+    password: str = Field(repr=False)
     is_active: bool = Field(default=True)
     is_verified: bool = Field(default=False)
-
-
-class User(TimestampMixin, MetadataMixin, SoftDeleteMixin, UserBase, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    password: str = Field(repr=False)
     verification_token: str | None = None
     verification_token_expires: datetime | None = None
     reset_token: str | None = None
     reset_token_expires: datetime | None = None
     last_login_at: datetime | None = None
+    metadata: dict = Field(default_factory=dict)
 
 
 # Pydantic Models
-class UserCreate(UserBase):
+class UserCreate(SQLModel):
+    email: str
+    first_name: str
+    last_name: str
     password: str
+    role: UserRole | None = None
 
 
-class UserResponse(UserBase):
+class UserRead(SQLModel):
     id: UUID
+    email: str
+    first_name: str
+    last_name: str
     role: UserRole
+    is_active: bool
+    is_verified: bool
     metadata: dict
     created_at: datetime
     updated_at: datetime | None
