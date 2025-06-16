@@ -2,8 +2,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt
-from app.core.config import settings
 from passlib.context import CryptContext
+
+from src.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -16,6 +17,18 @@ def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def verify_access_token(token: str) -> dict[str, Any]:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.JWTError:
+        return {"msg": "Failed to decode token"}
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

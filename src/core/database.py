@@ -45,7 +45,7 @@ wait_seconds = 1
     before=before_log(logger, logging.INFO),
     after=after_log(logger, logging.WARN),
 )
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_database_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
     async with AsyncSessionLocal() as session:
         try:
