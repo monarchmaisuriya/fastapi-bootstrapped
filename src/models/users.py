@@ -3,6 +3,7 @@ from enum import Enum
 from uuid import UUID
 
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, SQLModel
 
 from src.base.model import BaseModel
@@ -15,6 +16,7 @@ class UserRole(str, Enum):
 
 # Unified ORM + Shared Pydantic Model
 class User(BaseModel, table=True):
+    __tablename__ = "users"
     email: str = Field(index=True, unique=True, max_length=320)
     first_name: str = Field(max_length=100)
     last_name: str = Field(max_length=100)
@@ -32,7 +34,7 @@ class User(BaseModel, table=True):
     reset_token: str | None = None
     reset_token_expires: datetime | None = None
     last_login_at: datetime | None = None
-    metadata: dict = Field(default_factory=dict)
+    meta_data: dict = Field(default_factory=dict, sa_type=JSON)
 
 
 # Pydantic Models
@@ -52,7 +54,7 @@ class UserRead(SQLModel):
     role: UserRole
     is_active: bool
     is_verified: bool
-    metadata: dict
+    meta_data: dict
     created_at: datetime
     updated_at: datetime | None
     last_login_at: datetime | None
@@ -62,5 +64,5 @@ class UserUpdate(SQLModel):
     email: str | None = None
     first_name: str | None = None
     last_name: str | None = None
-    metadata: dict | None = None
+    meta_data: dict | None = None
     last_login_at: datetime | None = None

@@ -6,6 +6,28 @@ __pycache__/
 # Ruff cache
 .ruff_cache/
 
+# Pytest cache
+.pytest_cache/
+
+# Pytest temporary files  
+.pytest_runner
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+.eggs/
+.egg-info/
+.installed.cfg
+*.egg
+
+# PDM cache
+.pdm/
+.pdm-build/
+.pdm-python
+
 # Cython extension files
 *.so
 

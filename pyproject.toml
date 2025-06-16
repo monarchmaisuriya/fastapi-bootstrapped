@@ -1,9 +1,14 @@
 [project]
 name = "fastapi-bootstrapped"
 version = "0.1.0"
-description = "Starter template for FastAPI projects"
+description = "Default template for PDM package"
+authors = [
+    { name = "Monarch Maisuriya", email = "monarchmaisuriya@gmail.com" },
+]
 readme = "README.md"
-requires-python = ">=3.10"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+
 dependencies = [
     "fastapi[standard]>=0.115.12",
     "pydantic>=2.11.5",
@@ -16,39 +21,40 @@ dependencies = [
     "tenacity<9.0.0,>=8.2.3",
     "alembic<2.0.0,>=1.12.1",
     "psycopg[binary]<4.0.0,>=3.1.13",
-    # Pin bcrypt until passlib supports the latest
     "bcrypt==4.0.1",
     "pyjwt<3.0.0,>=2.8.0",
-    "greenlet>=3.2.3",
+    "greenlet>=3.2.3"
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.13",
+    "ruff>=0.11.13"
 ]
+
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.scripts]
+seed = "scripts.seed:main"
+dev = "fastapi dev src"
+migrate = "alembic upgrade head"
+migrate-down = "alembic downgrade -1"
+make-migration = "alembic revision --autogenerate -m \"%(message)s\""
+lint = "ruff check ."
+
 [tool.ruff]
 target-version = "py310"
 exclude = [".venv", "alembic"]
 
 [tool.ruff.lint]
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "ARG001", # unused arguments in functions
-]
-ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
-    "W191",  # indentation contains tabs
-    "B904",  # Allow raising exceptions without from e, for HTTPException
-]
-
+select = ["E", "W", "F", "I", "B", "C4", "UP", "ARG001"]
+ignore = ["E501", "B008", "W191", "B904"]
 
 [tool.ruff.lint.pyupgrade]
-# Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
+
+[tool.pdm]
+distribution = true
+package-dir = {"" = "src"}
