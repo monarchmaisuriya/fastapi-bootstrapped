@@ -1,6 +1,4 @@
 import logging
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -40,26 +38,6 @@ logger = logging.getLogger(__name__)
 
 max_tries = 60 * 5
 wait_seconds = 1
-
-
-@retry(
-    stop=stop_after_attempt(max_tries),
-    wait=wait_fixed(wait_seconds),
-    before=before_log(logger, logging.INFO),
-    after=after_log(logger, logging.WARN),
-)
-@asynccontextmanager
-async def get_database_session() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to get database session."""
-    session = SessionFactory()
-    try:
-        yield session
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Database session error: {e}")
-        raise
-    finally:
-        await session.close()
 
 
 @retry(

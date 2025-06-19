@@ -1,91 +1,95 @@
+from typing import Any
 from uuid import UUID
 
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.engine.result import Result
+from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlmodel import select
+from sqlmodel.sql._expression_select_cls import SelectOfScalar
 
-from core.database import get_database_session
 from helpers.auth import hash_password
-from helpers.logger import logger
+from helpers.repository import BaseRepository
 from helpers.utils import APIError, APIResponse
 from models.users import UserCreate, UserQuery, Users, UserUpdate
 
 
-class UserService:
-    def __init__(self, db: AsyncSession = Depends(get_database_session)):
-        self.db = db
-
+class UserService(BaseRepository):
     async def create(self, payload: UserCreate) -> APIResponse:
-        hashed_password = hash_password(payload.password)
-        user = Users(
-            **payload.model_dump(exclude={"password"}), password=hashed_password
+        db: AsyncSession = await self.get_database_session()
+        user: Any = Users(
+            **payload.model_dump(exclude={"password"}),
+            password=hash_password(payload.password),
         )
-        self.db.add(user)
-        await self.db.commit()
-        await self.db.refresh(user)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        await self.close_database_session()
         return APIResponse(data=user.model_dump())
 
-    async def find(self, query: UserQuery | None = None) -> APIResponse:
-        filters = []
-        if query:
-            if query.first_name:
-                filters.append(Users.first_name == query.first_name)
-            if query.last_name:
-                filters.append(Users.last_name == query.last_name)
-            if query.email:
-                filters.append(Users.email == query.email)
+    async def find(self, query: UserQuery) -> APIResponse:
+        db: AsyncSession = await self.get_database_session()
+        filters: list[bool] = []
+        if query.first_name:
+            filters.append(Users.first_name == query.first_name)
+        if query.last_name:
+            filters.append(Users.last_name == query.last_name)
+        if query.email:
+            filters.append(Users.email == query.email)
 
-        statement = select(Users)
+        stmt: SelectOfScalar[type[Users]] = select(Users)
         if filters:
-            statement = statement.where(*filters)
+            stmt = stmt.where(*filters)
 
-        result = await self.db.execute(statement)
-        user = Users(result.scalar_one_or_none())
+        result: Result[tuple[type[Users]]] = await db.execute(stmt)
+        user: type[Users] | None = result.scalar_one_or_none()
+        await self.close_database_session()
 
         if not user:
-            logger.error(
-                f"User not found with filters: {UserQuery(query).model_dump()}"
-            )
             raise APIError(404, "User not found")
 
-        return APIResponse(data=user.model_dump())
+        return APIResponse(data=Users(user).model_dump())
 
     async def get(self, id: UUID) -> APIResponse:
-        statement = select(Users).where(Users.id == id)
-        result = await self.db.execute(statement)
-        user = Users(result.scalar_one_or_none())
+        db: AsyncSession = await self.get_database_session()
+        stmt: SelectOfScalar[type[Users]] = select(Users).where(Users.id == id)
+        result: Result[tuple[type[Users]]] = await db.execute(stmt)
+        user: type[Users] | None = result.scalar_one_or_none()
+        await self.close_database_session()
+
         if not user:
-            logger.error(f"User not found: {id}")
             raise APIError(404, "User not found")
-        return APIResponse(data=user.model_dump())
+        return APIResponse(data=Users(user).model_dump())
 
     async def update(self, id: UUID, payload: UserUpdate) -> APIResponse:
-        statement = select(Users).where(Users.id == id)
-        result = await self.db.execute(statement)
-        user = Users(result.scalar_one_or_none())
+        db: AsyncSession = await self.get_database_session()
+        stmt: SelectOfScalar[type[Users]] = select(Users).where(Users.id == id)
+        result: Result[tuple[type[Users]]] = await db.execute(stmt)
+        user: type[Users] | None = result.scalar_one_or_none()
         if not user:
-            logger.error(f"User not found: {id}")
+            await self.close_database_session()
             raise APIError(404, "User not found")
 
-        update_data = payload.model_dump(exclude_unset=True)
+        update_data: dict[str, Any] = payload.model_dump(exclude_unset=True)
         if "password" in update_data:
             update_data["password"] = hash_password(update_data["password"])
 
         for key, value in update_data.items():
             setattr(user, key, value)
 
-        self.db.add(user)
-        await self.db.commit()
-        await self.db.refresh(user)
-        return APIResponse(data=user.model_dump())
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        await self.close_database_session()
+        return APIResponse(data=Users(user).model_dump())
 
     async def delete(self, id: UUID) -> APIResponse:
-        statement = select(Users).where(Users.id == id)
-        result = await self.db.execute(statement)
-        user = result.scalar_one_or_none()
+        db: AsyncSession = await self.get_database_session()
+        stmt: SelectOfScalar[type[Users]] = select(Users).where(Users.id == id)
+        result: Result[tuple[type[Users]]] = await db.execute(stmt)
+        user: type[Users] | None = result.scalar_one_or_none()
         if not user:
-            logger.error(f"User not found: {id}")
+            await self.close_database_session()
             raise APIError(404, "User not found")
-        await self.db.delete(user)
-        await self.db.commit()
+        await db.delete(user)
+        await db.commit()
+        await self.close_database_session()
         return APIResponse(data={"message": "User deleted"})

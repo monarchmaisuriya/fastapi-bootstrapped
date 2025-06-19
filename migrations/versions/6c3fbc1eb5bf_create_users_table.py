@@ -34,7 +34,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("id", AutoString(), nullable=False),
+        sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("email", AutoString(length=320), nullable=False),
         sa.Column("first_name", AutoString(length=100), nullable=False),
         sa.Column("last_name", AutoString(length=100), nullable=False),

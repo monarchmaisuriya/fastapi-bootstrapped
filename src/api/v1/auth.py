@@ -5,9 +5,9 @@ from models.users import UserCreate
 from services.auth import AuthService
 from services.users import UserService
 
-auth_router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-auth_service = AuthService()
-user_service = UserService()
+auth_router: APIRouter = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+user_service: UserService = UserService()
+auth_service: AuthService = AuthService()
 
 
 @auth_router.post("/account/create")
