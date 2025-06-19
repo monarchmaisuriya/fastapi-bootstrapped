@@ -8,7 +8,7 @@ from core.database import get_database_session
 from helpers.auth import hash_password
 from helpers.logger import logger
 from helpers.utils import APIError, APIResponse
-from models.users import UserCreate, UserUpdate, UserQuery, Users
+from models.users import UserCreate, UserQuery, Users, UserUpdate
 
 
 class UserService:
