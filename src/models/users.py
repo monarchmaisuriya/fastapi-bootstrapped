@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import EmailStr
+from pydantic.config import ConfigDict
 from sqlalchemy import Column
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSON
@@ -13,8 +14,8 @@ from helpers.model import BaseModel
 
 
 class UserRole(str, Enum):
-    USER = "user"
-    ADMIN = "admin"
+    USER = "USER"
+    ADMIN = "ADMIN"
 
 
 class UserBase(BaseModel):
@@ -44,6 +45,8 @@ class UserCreate(SQLModel):
 
 
 class UserRead(SQLModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     email: str
     first_name: str
@@ -69,6 +72,30 @@ class UserQuery(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     email: str | None = None
+
+
+class UserValidate(SQLModel):
+    email: str
+    password: str
+
+
+class UserRevalidate(SQLModel):
+    refresh_token: str
+
+
+class UserManage(SQLModel):
+    email: str
+    password: str
+
+
+class UserAuthTokens(SQLModel):
+    access_token: str
+    refresh_token: str
+
+
+class UserAuthRead(SQLModel):
+    user: UserRead
+    auth: UserAuthTokens
 
 
 class Users(UserBase, table=True):

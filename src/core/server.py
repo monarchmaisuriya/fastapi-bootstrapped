@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.database import check_database_connection, engine
 from helpers.logger import Logger
-from helpers.middlewares import LogRequests
+from middlewares.logger import LogRequests
 
 logger = Logger(__name__)
 

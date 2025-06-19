@@ -1,9 +1,11 @@
 import time
 from typing import Any
 
-from src.api import setup_routes
-from src.core.config import settings
-from src.core.server import Server
+from api import setup_routes
+from core.config import settings
+from core.server import Server
+from helpers.auth import get_public_paths, public_route
+from middlewares.auth import AuthenticateRequest
 
 # Initialize server
 server = Server()
@@ -15,6 +17,7 @@ app.include_router(setup_routes())
 
 # Health check endpoints
 @app.get("/health")
+@public_route
 async def health_check() -> dict[str, Any]:
     """Basic health check endpoint."""
     return {
@@ -24,3 +27,12 @@ async def health_check() -> dict[str, Any]:
         "version": settings.VERSION,
         "environment": settings.ENV,
     }
+
+
+# Add custom middlewares
+public_paths = get_public_paths(app)
+app.add_middleware(
+    # type: ignore[arg-type]  - Known issue with FastAPI and Starlette types
+    AuthenticateRequest,
+    public_paths=public_paths,
+)
