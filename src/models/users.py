@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID
 
+from pydantic import EmailStr
 from sqlalchemy import Column
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSON
@@ -17,7 +18,7 @@ class UserRole(str, Enum):
 
 
 class UserBase(BaseModel):
-    email: str = Field(index=True, unique=True, max_length=320)
+    email: EmailStr = Field(index=True, unique=True, max_length=320)
     first_name: str = Field(max_length=100)
     last_name: str = Field(max_length=100)
     role: UserRole = Field(
@@ -36,7 +37,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(SQLModel):
-    email: str
+    email: EmailStr
     first_name: str
     last_name: str
     password: str
