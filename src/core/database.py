@@ -1,13 +1,17 @@
 import logging
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from sqlalchemy import Engine
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlmodel import select
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
-from src.core.config import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,26 +20,25 @@ DATABASE_URI = str(settings.POSTGRES_URI)
 # Create async engine with connection pooling
 engine = create_async_engine(
     DATABASE_URI,
-    # Connection pool settings
     pool_size=5,
     max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=300,
-    # SQLite specific (remove for PostgreSQL)
-    poolclass=StaticPool if "sqlite" in DATABASE_URI else None,
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URI else {},
-    echo=False,  # Set to True for SQL logging in development
+    echo=False,
 )
 
 # Create async session factory
-AsyncSessionLocal = async_sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
+SessionFactory = async_sessionmaker(
+    bind=engine,
+    expire_on_commit=False,
+    class_=AsyncSession,
 )
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-max_tries = 60 * 5  # 5 minutes
+max_tries = 60 * 5
 wait_seconds = 1
 
 
@@ -45,17 +48,18 @@ wait_seconds = 1
     before=before_log(logger, logging.INFO),
     after=after_log(logger, logging.WARN),
 )
+@asynccontextmanager
 async def get_database_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception as e:
-            await session.rollback()
-            logger.error(f"Database session error: {e}")
-            raise
-        finally:
-            await session.close()
+    session = SessionFactory()
+    try:
+        yield session
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Database session error: {e}")
+        raise
+    finally:
+        await session.close()
 
 
 @retry(
@@ -64,17 +68,16 @@ async def get_database_session() -> AsyncGenerator[AsyncSession, None]:
     before=before_log(logger, logging.INFO),
     after=after_log(logger, logging.WARN),
 )
-async def check_database_connection(db_engine: Engine) -> bool:
+async def check_database_connection(db_engine: AsyncEngine) -> bool:
     """Health check for database connection."""
     try:
-        AsyncSessionLocalCheck = async_sessionmaker(
-            db_engine, class_=AsyncSession, expire_on_commit=False
-        )
-        async with AsyncSessionLocalCheck() as session:
-            # Try to create session to check if DB is awake
-            await session.execute(select(1))
-            logger.info("Database health check successful.")
-            return True
+        TempSession = async_sessionmaker(db_engine, expire_on_commit=False)
+        session = TempSession()
+        await session.execute(select(1))
+        logger.info("Database health check successful.")
+        await session.close()
+        return True
     except Exception as e:
+        await session.close()
         logger.error(f"Database health check failed: {e}")
         return False

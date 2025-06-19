@@ -1,12 +1,14 @@
 from datetime import datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID
 
+from sqlalchemy import Column
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, SQLModel
 
-from src.base.model import BaseModel
+from helpers.model import BaseModel
 
 
 class UserRole(str, Enum):
@@ -14,16 +16,13 @@ class UserRole(str, Enum):
     ADMIN = "admin"
 
 
-# Unified ORM + Shared Pydantic Model
-class User(BaseModel, table=True):
-    __tablename__ = "users"
+class UserBase(BaseModel):
     email: str = Field(index=True, unique=True, max_length=320)
     first_name: str = Field(max_length=100)
     last_name: str = Field(max_length=100)
     role: UserRole = Field(
         default=UserRole.USER,
-        sa_type=SAEnum(UserRole),
-        index=True,
+        sa_column=Column(SAEnum(UserRole)),
         description="User role options",
     )
     password: str = Field(repr=False)
@@ -34,10 +33,8 @@ class User(BaseModel, table=True):
     reset_token: str | None = None
     reset_token_expires: datetime | None = None
     last_login_at: datetime | None = None
-    meta_data: dict = Field(default_factory=dict, sa_type=JSON)
 
 
-# Pydantic Models
 class UserCreate(SQLModel):
     email: str
     first_name: str
@@ -54,7 +51,7 @@ class UserRead(SQLModel):
     role: UserRole
     is_active: bool
     is_verified: bool
-    meta_data: dict
+    meta_data: dict[str, Any]
     created_at: datetime
     updated_at: datetime | None
     last_login_at: datetime | None
@@ -64,5 +61,15 @@ class UserUpdate(SQLModel):
     email: str | None = None
     first_name: str | None = None
     last_name: str | None = None
-    meta_data: dict | None = None
+    meta_data: dict[str, Any] | None = None
     last_login_at: datetime | None = None
+
+
+class UserQuery(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+
+
+class Users(UserBase, table=True):
+    meta_data: dict[str, Any] = Field(default_factory=dict, sa_type=JSON)

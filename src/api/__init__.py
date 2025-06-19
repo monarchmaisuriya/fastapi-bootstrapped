@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from src.api.v1.users import users_router
+from api.v1.users import users_router
 
 
 def setup_routes() -> APIRouter:

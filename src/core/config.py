@@ -1,5 +1,4 @@
 from pydantic import (
-    PostgresDsn,
     computed_field,
 )
 from pydantic_core import MultiHostUrl
@@ -48,7 +47,7 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
-    def POSTGRES_URI(self) -> PostgresDsn:
+    def POSTGRES_URI(self) -> MultiHostUrl:
         if (
             self.ENV == "production"
             and self.POSTGRESQL_USER

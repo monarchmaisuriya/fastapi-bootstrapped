@@ -2,7 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from src.core.config import settings
+from core.config import settings
 
 
 def Logger(name: str = settings.PROJECT_NAME) -> logging.Logger:

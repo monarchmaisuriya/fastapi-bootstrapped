@@ -17,9 +17,8 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 
-from src.models import SQLModel  # noqa
-from src.models.users import User  # noqa
-from src.core.config import settings  # noqa
+from models import SQLModel, Users  # noqa
+from core.config import settings  # noqa
 
 target_metadata = SQLModel.metadata
 
@@ -64,7 +63,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    configuration = config.get_section(config.config_ini_section)
+    configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = get_url()
 
     connectable = engine_from_config(

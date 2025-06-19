@@ -28,7 +28,11 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.13"
+    "ruff>=0.11.13",
+    "pyrefly>=0.20.2",
+]
+test = [
+    "pytest>=8.4.1",
 ]
 
 
@@ -60,3 +64,7 @@ keep-runtime-typing = true
 [tool.pdm]
 distribution = true
 package-dir = {"" = "src"}
+
+[tool.pyrefly]
+project-includes = ["**/*"]
+project-excludes = ["**/*venv/**/*"]

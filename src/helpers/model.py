@@ -1,39 +1,31 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy import Column, DateTime, func
-from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, SQLModel
 
 
-class TimestampMixin(SQLModel):
+class BaseModel(SQLModel):
+    id: UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+    )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(datetime.timezone.utc),
+        default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), server_default=func.now()),
     )
     updated_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), onupdate=func.now())
     )
-
-
-class MetadataMixin(SQLModel):
-    meta_data: dict = Field(default_factory=dict, sa_type=JSON)
-
-
-class SoftDeleteMixin(SQLModel):
     deleted_at: datetime | None = Field(default=None)
     is_deleted: bool = Field(default=False)
 
     def soft_delete(self):
         self.is_deleted = True
-        self.deleted_at = datetime.now(datetime.timezone.utc)
+        self.deleted_at = datetime.now(timezone.utc)
 
     def restore(self):
         self.is_deleted = False
         self.deleted_at = None
-
-
-class BaseModel(TimestampMixin, SoftDeleteMixin, MetadataMixin):
-    id: str | None = Field(
-        default_factory=lambda: str(uuid.uuid4()), primary_key=True, index=True
-    )

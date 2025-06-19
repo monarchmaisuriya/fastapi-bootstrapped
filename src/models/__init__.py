@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel
 
-from src.models.users import User
+from models.users import Users
 
-__all__ = ["User", "SQLModel"]
+__all__ = ["Users", "SQLModel"]

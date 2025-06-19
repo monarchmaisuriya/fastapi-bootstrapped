@@ -1,39 +1,45 @@
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
-import jwt
-from passlib.context import CryptContext
-
-from src.core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-ALGORITHM = "HS256"
+from core.database import get_database_session
+from helpers.auth import hash_password
+from helpers.logger import logger
+from helpers.utils import APIError, APIResponse
+from models.auth import UserAuthenticate, UserManage
+from models.users import Users
 
 
-def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+class AuthService:
+    def __init__(self, db: AsyncSession = Depends(get_database_session)):
+        self.db = db
 
+    async def validate(self, payload: UserAuthenticate) -> APIResponse:
+        hashed_password = hash_password(payload.password)
+        user = Users(
+            **payload.model_dump(exclude={"password"}), password=hashed_password
+        )
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return APIResponse(data=user.model_dump())
 
-def verify_access_token(token: str) -> dict[str, Any]:
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except jwt.JWTError:
-        return {"msg": "Failed to decode token"}
+    async def manage(self, action: str, payload: UserManage) -> APIResponse:
+        statement = select(Users).where(Users.id == id)
+        result = await self.db.execute(statement)
+        user = Users(result.scalar_one_or_none())
+        if not user:
+            logger.error(f"User not found: {id}")
+            raise APIError(404, "User not found")
 
+        update_data = payload.model_dump(exclude_unset=True)
+        if "password" in update_data:
+            update_data["password"] = hash_password(update_data["password"])
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+        for key, value in update_data.items():
+            setattr(user, key, value)
 
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return APIResponse(data=user.model_dump())

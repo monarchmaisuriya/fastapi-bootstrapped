@@ -1,3 +1,3 @@
-from src.main import app, server
+from main import app, server
 
 __all__ = ["app", "server"]

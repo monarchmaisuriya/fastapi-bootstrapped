@@ -9,9 +9,9 @@ Create Date: 2025-06-16 14:53:12.193991
 from typing import Sequence  # noqa: UP035
 
 import sqlalchemy as sa
-import sqlmodel
 from alembic import op
 from sqlalchemy.dialects import postgresql
+from sqlmodel import AutoString
 
 # revision identifiers, used by Alembic.
 revision: str = "6c3fbc1eb5bf"
@@ -34,25 +34,17 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column(
-            "email", sqlmodel.sql.sqltypes.AutoString(length=320), nullable=False
-        ),
-        sa.Column(
-            "first_name", sqlmodel.sql.sqltypes.AutoString(length=100), nullable=False
-        ),
-        sa.Column(
-            "last_name", sqlmodel.sql.sqltypes.AutoString(length=100), nullable=False
-        ),
+        sa.Column("id", AutoString(), nullable=False),
+        sa.Column("email", AutoString(length=320), nullable=False),
+        sa.Column("first_name", AutoString(length=100), nullable=False),
+        sa.Column("last_name", AutoString(length=100), nullable=False),
         sa.Column("role", sa.Enum("USER", "ADMIN", name="userrole"), nullable=False),
-        sa.Column("password", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("password", AutoString(), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("is_verified", sa.Boolean(), nullable=False),
-        sa.Column(
-            "verification_token", sqlmodel.sql.sqltypes.AutoString(), nullable=True
-        ),
+        sa.Column("verification_token", AutoString(), nullable=True),
         sa.Column("verification_token_expires", sa.DateTime(), nullable=True),
-        sa.Column("reset_token", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+        sa.Column("reset_token", AutoString(), nullable=True),
         sa.Column("reset_token_expires", sa.DateTime(), nullable=True),
         sa.Column("last_login_at", sa.DateTime(), nullable=True),
         sa.Column("meta_data", postgresql.JSON(astext_type=sa.Text()), nullable=False),
