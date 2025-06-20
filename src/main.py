@@ -30,9 +30,8 @@ async def health_check() -> dict[str, Any]:
 
 
 # Add custom middlewares
-public_paths = get_public_paths(app)
 app.add_middleware(
     # type: ignore[arg-type]  - Known issue with FastAPI and Starlette types
     AuthenticateRequest,
-    public_paths=public_paths,
+    public_paths=get_public_paths(app),
 )

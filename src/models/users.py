@@ -71,11 +71,11 @@ class UserUpdate(SQLModel):
 class UserQuery(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
-    email: str | None = None
+    email: EmailStr | None = None
 
 
 class UserValidate(SQLModel):
-    email: str
+    email: EmailStr
     password: str
 
 
@@ -84,7 +84,7 @@ class UserRevalidate(SQLModel):
 
 
 class UserManage(SQLModel):
-    email: str
+    email: EmailStr
     password: str
 
 
