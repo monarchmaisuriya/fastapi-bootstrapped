@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -35,8 +36,8 @@ def create_access_token(
     subject: str | Any,
     expires_delta: timedelta = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS),
 ) -> str:
-    expire = datetime.now(timezone.utc) + expires_delta
     now = datetime.now(timezone.utc)
+    expire = now + expires_delta
     jti = str(uuid.uuid4())
     to_encode = {
         "sub": str(subject),
@@ -154,3 +155,8 @@ def require_auth(token: HTTPAuthorizationCredentials = Security(security)):
         return verify_access_token(raw_token)
     except Exception as e:
         return APIError(401, f"Unauthorized: {str(e)}")
+
+
+def create_one_time_password() -> str:
+    otp = secrets.randbelow(900000) + 100000
+    return str(otp)

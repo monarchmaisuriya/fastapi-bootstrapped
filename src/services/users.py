@@ -1,5 +1,6 @@
-from datetime import datetime
-from typing import Any
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -8,9 +9,11 @@ from sqlmodel import select
 
 from helpers.auth import (
     create_access_token,
+    create_one_time_password,
     create_refresh_token,
     hash_password,
     rotate_refresh_token,
+    token_blacklist,
     verify_password,
     verify_refresh_token,
 )
@@ -19,7 +22,9 @@ from helpers.utils import APIError, APIResponse
 from models.users import (
     UserAuthRead,
     UserCreate,
+    UserInvalidate,
     UserManage,
+    UserManageAction,
     UserQuery,
     UserRead,
     UserRevalidate,
@@ -186,7 +191,7 @@ class UserService(BaseRepository):
             if not verify_password(payload.password, user.password):
                 raise APIError(401, "Invalid credentials")
 
-            user.last_login_at = datetime.utcnow()
+            user.authenticated_at = datetime.utcnow()
             db.add(user)
             await db.commit()
             await db.refresh(user)
@@ -237,35 +242,217 @@ class UserService(BaseRepository):
         finally:
             await self.close_database_session()
 
+    async def invalidate(self, payload: UserInvalidate) -> APIResponse[dict] | None:
+        auth_data = verify_refresh_token(payload.refresh_token)
+        if not auth_data:
+            raise APIError(401, "Invalid or expired refresh token")
+
+        jti = auth_data.get("jti")
+        if jti:
+            token_blacklist.add(jti)
+
+        return APIResponse[dict](data={"message": "Successfully logged out"})
+
     async def manage(
-        self, action: str, payload: UserManage
+        self, action: UserManageAction, payload: UserManage
     ) -> APIResponse[UserAuthRead] | None:
         db: AsyncSession = await self.get_database_session()
         try:
             stmt = select(Users).where(
-                Users.id == "",  # Replace with actual logic
+                Users.email == payload.email,
                 Users.is_deleted == False,  # noqa: E712
             )
             result = await db.execute(stmt)
-            user = result.scalar_one_or_none()
-
-            if not user:
+            user_or_none = result.scalar_one_or_none()
+            if not user_or_none:
                 raise APIError(404, "User not found")
 
-            update_data: dict[str, Any] = payload.model_dump(exclude_unset=True)
-            if "password" in update_data:
-                update_data["password"] = hash_password(update_data["password"])
+            user = cast(Users, user_or_none)
 
-            for key, value in update_data.items():
-                setattr(user, key, value)
+            action_handlers: dict[
+                str, Callable[[], Awaitable[APIResponse[UserAuthRead] | None]]
+            ] = {
+                "start-email-verification": lambda: self.handle_start_email_verification(
+                    payload.email, user, db
+                ),
+                "finish-email-verification": lambda: self.handle_finish_email_verification(
+                    payload, payload.email, user, db
+                ),
+                "start-email-authentication": lambda: self.handle_start_email_authentication(
+                    payload.email, user, db
+                ),
+                "finish-email-authentication": lambda: self.handle_finish_email_authentication(
+                    payload, payload.email, user, db
+                ),
+                "start-password-reset": lambda: self.handle_start_password_reset(
+                    payload.email, user, db
+                ),
+                "finish-password-reset": lambda: self.handle_finish_password_reset(
+                    payload, payload.email, user, db
+                ),
+                "update-email": lambda: self.handle_update_email(
+                    payload, payload.email, user, db
+                ),
+                "update-password": lambda: self.handle_update_password(
+                    payload, payload.email, user, db
+                ),
+            }
 
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-            data = UserRead.model_validate(user).model_dump()
-            return APIResponse[UserAuthRead](data=data)
+            handler = action_handlers.get(action)
+            if not handler:
+                raise APIError(400, f"Error: Action - {action} is invalid.")
+
+            return await handler()
+
         except IntegrityError as e:
             await db.rollback()
             raise APIError(400, "Database error while managing user") from e
         finally:
             await self.close_database_session()
+
+    async def handle_start_email_verification(
+        self, email: str, user: Users, db: AsyncSession
+    ):
+        if user.is_verified:
+            return APIResponse(message="User is already verified")
+        else:
+            user.verification_token = create_one_time_password()
+            user.verification_token_expires = datetime.now(timezone.utc) + timedelta(
+                minutes=60 * 24
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            return APIResponse(message="Verification email sent")
+
+    async def handle_finish_email_verification(
+        self,
+        payload: UserManage,
+        email: str,
+        user: Users,
+        db: AsyncSession,
+    ):
+        if payload.token != user.verification_token:
+            raise APIError(400, "Invalid verification token")
+        if (
+            not user.verification_token_expires
+            or datetime.now(timezone.utc) > user.verification_token_expires
+        ):
+            raise APIError(400, "Verification token expired")
+
+        user.verification_token = None
+        user.verification_token_expires = None
+        user.is_verified = True
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Email successfully verified")
+
+    async def handle_start_email_authentication(
+        self, email: str, user: Users, db: AsyncSession
+    ):
+        user.authentication_token = create_one_time_password()
+        user.authentication_token_expires = datetime.now(timezone.utc) + timedelta(
+            minutes=5
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Authentication code sent")
+
+    async def handle_finish_email_authentication(
+        self,
+        payload: UserManage,
+        email: str,
+        user: Users,
+        db: AsyncSession,
+    ):
+        if payload.token != user.authentication_token:
+            raise APIError(400, "Invalid authentication token")
+        if (
+            not user.authentication_token_expires
+            or datetime.now(timezone.utc) > user.authentication_token_expires
+        ):
+            raise APIError(400, "Authentication token expired")
+
+        user.authentication_token = None
+        user.authentication_token_expires = None
+        user.authenticated_at = datetime.now(timezone.utc)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Authentication successful")
+
+    async def handle_start_password_reset(
+        self, email: str, user: Users, db: AsyncSession
+    ):
+        user.reset_token = create_one_time_password()
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=60)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Password reset token sent")
+
+    async def handle_finish_password_reset(
+        self,
+        payload: UserManage,
+        email: str,
+        user: Users,
+        db: AsyncSession,
+    ):
+        if payload.token != user.reset_token:
+            raise APIError(400, "Invalid reset token")
+        if (
+            not user.reset_token_expires
+            or datetime.now(timezone.utc) > user.reset_token_expires
+        ):
+            raise APIError(400, "Reset token expired")
+        if not payload.new_password:
+            raise APIError(400, "Missing new password")
+
+        user.password = hash_password(payload.new_password)
+        user.reset_token = None
+        user.reset_token_expires = None
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Password has been reset successfully")
+
+    async def handle_update_email(
+        self,
+        payload: UserManage,
+        email: str,
+        user: Users,
+        db: AsyncSession,
+    ):
+        if not payload.new_email:
+            raise APIError(400, "Missing new email")
+        if payload.new_email == email:
+            raise APIError(400, "New email cannot be the same as current email")
+        user.email = payload.new_email
+        user.is_verified = False
+        user.verification_token = create_one_time_password()
+        user.verification_token_expires = datetime.now(timezone.utc) + timedelta(
+            minutes=60 * 24
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Email updated and verification required")
+
+    async def handle_update_password(
+        self,
+        payload: UserManage,
+        email: str,
+        user: Users,
+        db: AsyncSession,
+    ):
+        if not payload.new_password:
+            raise APIError(400, "Missing new password")
+        if not payload.password or not verify_password(payload.password, user.password):
+            raise APIError(401, "Invalid current password")
+        user.password = hash_password(payload.new_password)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+        return APIResponse(message="Password updated successfully")

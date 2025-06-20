@@ -43,10 +43,14 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("is_verified", sa.Boolean(), nullable=False),
         sa.Column("verification_token", AutoString(), nullable=True),
-        sa.Column("verification_token_expires", sa.DateTime(), nullable=True),
+        sa.Column(
+            "verification_token_expires", sa.DateTime(timezone=True), nullable=True
+        ),
+        sa.Column("authentication_token", AutoString(), nullable=True),
+        sa.Column("authentication_token_expires", sa.DateTime(), nullable=True),
+        sa.Column("authenticated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("reset_token", AutoString(), nullable=True),
-        sa.Column("reset_token_expires", sa.DateTime(), nullable=True),
-        sa.Column("last_login_at", sa.DateTime(), nullable=True),
+        sa.Column("reset_token_expires", sa.DateTime(timezone=True), nullable=True),
         sa.Column("meta_data", postgresql.JSON(astext_type=sa.Text()), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )

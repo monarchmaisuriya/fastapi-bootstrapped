@@ -16,7 +16,13 @@ app.include_router(setup_routes())
 
 
 # Health check endpoints
-@app.get("/health")
+@app.get(
+    "/health",
+    response_model=dict[str, Any],
+    summary="Health Check",
+    description="Check the health status of the API.",
+    tags=["health"],
+)
 @public_route
 async def health_check() -> dict[str, Any]:
     """Basic health check endpoint."""

@@ -19,7 +19,9 @@ class BaseModel(SQLModel):
     updated_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), onupdate=func.now())
     )
-    deleted_at: datetime | None = Field(default=None)
+    deleted_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
     is_deleted: bool = Field(default=False)
 
     def soft_delete(self):

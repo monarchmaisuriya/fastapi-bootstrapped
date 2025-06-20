@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import EmailStr
 from pydantic.config import ConfigDict
-from sqlalchemy import Column
+from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSON
 from sqlmodel import Field, SQLModel
@@ -31,10 +31,20 @@ class UserBase(BaseModel):
     is_active: bool = Field(default=True)
     is_verified: bool = Field(default=False)
     verification_token: str | None = None
-    verification_token_expires: datetime | None = None
+    verification_token_expires: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    authentication_token: str | None = None
+    authentication_token_expires: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
     reset_token: str | None = None
-    reset_token_expires: datetime | None = None
-    last_login_at: datetime | None = None
+    reset_token_expires: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
+    authenticated_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )
 
 
 class UserCreate(SQLModel):
@@ -48,7 +58,7 @@ class UserRead(SQLModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    email: str
+    email: EmailStr
     first_name: str
     last_name: str
     role: UserRole
@@ -61,7 +71,7 @@ class UserRead(SQLModel):
 
 
 class UserUpdate(SQLModel):
-    email: str | None = None
+    email: EmailStr | None = None
     first_name: str | None = None
     last_name: str | None = None
     meta_data: dict[str, Any] | None = None
@@ -83,9 +93,27 @@ class UserRevalidate(SQLModel):
     refresh_token: str
 
 
+class UserInvalidate(SQLModel):
+    refresh_token: str
+
+
 class UserManage(SQLModel):
     email: EmailStr
-    password: str
+    new_email: EmailStr | None = None
+    password: str | None = None
+    new_password: str | None = None
+    token: str | None = None
+
+
+class UserManageAction(str, Enum):
+    START_EMAIL_VERIFICATION = "start-email-verification"
+    FINISH_EMAIL_VERIFICATION = "finish-email-verification"
+    START_EMAIL_AUTHENTICATION = "start-email-authentication"
+    FINISH_EMAIL_AUTHENTICATION = "finish-email-authentication"
+    START_PASSWORD_RESET = "start-password-reset"
+    FINISH_PASSWORD_RESET = "finish-password-reset"
+    UPDATE_EMAIL = "update-email"
+    UPDATE_PASSWORD = "update-password"
 
 
 class UserAuthTokens(SQLModel):
