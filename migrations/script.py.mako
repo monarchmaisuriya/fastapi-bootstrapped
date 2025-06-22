@@ -10,7 +10,7 @@ from typing import Sequence, Union  # noqa: UP035
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
-from sqlmodel import AutoString  # Added correct import
+import sqlmodel
 ${imports if imports else ""}
 
 # revision identifiers, used by Alembic.
