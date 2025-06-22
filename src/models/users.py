@@ -67,7 +67,7 @@ class UserRead(SQLModel):
     meta_data: dict[str, Any]
     created_at: datetime
     updated_at: datetime | None
-    last_login_at: datetime | None
+    authenticated_at: datetime | None
 
 
 class UserUpdate(SQLModel):
@@ -75,7 +75,7 @@ class UserUpdate(SQLModel):
     first_name: str | None = None
     last_name: str | None = None
     meta_data: dict[str, Any] | None = None
-    last_login_at: datetime | None = None
+    authenticated_at: datetime | None = None
 
 
 class UserQuery(BaseModel):
@@ -124,6 +124,10 @@ class UserAuthTokens(SQLModel):
 class UserAuthRead(SQLModel):
     user: UserRead
     auth: UserAuthTokens
+
+
+class UserManageRead(SQLModel):
+    message: str
 
 
 class Users(UserBase, table=True):

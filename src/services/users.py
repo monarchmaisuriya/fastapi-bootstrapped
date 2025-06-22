@@ -158,7 +158,7 @@ class UserService(BaseRepository):
         finally:
             await self.close_database_session()
 
-    async def delete(self, id: UUID) -> APIResponse[dict] | None:
+    async def delete(self, id: UUID) -> APIResponse | None:
         db: AsyncSession = await self.get_database_session()
         try:
             statement = select(Users).where(Users.id == id, Users.is_deleted == False)  # noqa: E712
@@ -171,7 +171,7 @@ class UserService(BaseRepository):
             Users(user).soft_delete()
             db.add(user)
             await db.commit()
-            return APIResponse[dict](data={"message": "User soft-deleted"})
+            return APIResponse(message="User soft-deleted")
         finally:
             await self.close_database_session()
 
@@ -242,7 +242,7 @@ class UserService(BaseRepository):
         finally:
             await self.close_database_session()
 
-    async def invalidate(self, payload: UserInvalidate) -> APIResponse[dict] | None:
+    async def invalidate(self, payload: UserInvalidate) -> APIResponse | None:
         auth_data = verify_refresh_token(payload.refresh_token)
         if not auth_data:
             raise APIError(401, "Invalid or expired refresh token")
@@ -251,11 +251,11 @@ class UserService(BaseRepository):
         if jti:
             token_blacklist.add(jti)
 
-        return APIResponse[dict](data={"message": "Successfully logged out"})
+        return APIResponse(message="Successfully logged out")
 
     async def manage(
         self, action: UserManageAction, payload: UserManage
-    ) -> APIResponse[UserAuthRead] | None:
+    ) -> APIResponse | None:
         db: AsyncSession = await self.get_database_session()
         try:
             stmt = select(Users).where(
@@ -269,9 +269,7 @@ class UserService(BaseRepository):
 
             user = cast(Users, user_or_none)
 
-            action_handlers: dict[
-                str, Callable[[], Awaitable[APIResponse[UserAuthRead] | None]]
-            ] = {
+            action_handlers: dict[str, Callable[[], Awaitable[APIResponse | None]]] = {
                 "start-email-verification": lambda: self.handle_start_email_verification(
                     payload.email, user, db
                 ),
@@ -323,7 +321,7 @@ class UserService(BaseRepository):
             db.add(user)
             await db.commit()
             await db.refresh(user)
-            return APIResponse(message="Verification email sent")
+            return APIResponse(message="Verification token sent")
 
     async def handle_finish_email_verification(
         self,
@@ -358,7 +356,7 @@ class UserService(BaseRepository):
         db.add(user)
         await db.commit()
         await db.refresh(user)
-        return APIResponse(message="Authentication code sent")
+        return APIResponse(message="Authentication token sent")
 
     async def handle_finish_email_authentication(
         self,

@@ -10,8 +10,9 @@ from sqlmodel import select
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
 from core.config import settings
+from helpers.logger import Logger
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__)
 
 DATABASE_URI = str(settings.POSTGRES_URI)
 
@@ -32,9 +33,6 @@ SessionFactory = async_sessionmaker(
     expire_on_commit=False,
     class_=AsyncSession,
 )
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 max_tries = 60 * 5
 wait_seconds = 1

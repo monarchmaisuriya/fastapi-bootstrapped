@@ -24,4 +24,5 @@ class APIError(Exception):
 # Standardized response model for consistent API responses
 class APIResponse(BaseModel, Generic[T]):
     data: T | None = None
+    message: str | None = None
     meta: dict[str, Any] | None = None

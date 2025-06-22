@@ -4,6 +4,8 @@ from fastapi import APIRouter
 from fastapi.params import Depends
 
 from helpers.auth import public_route, require_auth
+from helpers.constants import USER_CREATED_EVENT
+from helpers.events import events
 from helpers.utils import APIResponse
 from models.users import (
     UserAuthRead,
@@ -11,6 +13,7 @@ from models.users import (
     UserInvalidate,
     UserManage,
     UserManageAction,
+    UserManageRead,
     UserRead,
     UserRevalidate,
     UserUpdate,
@@ -52,7 +55,10 @@ async def update(
 )
 @public_route
 async def create(payload: UserCreate):
-    return await user_service.create(payload)
+    result = await user_service.create(payload)
+    if result:
+        await events.emit(USER_CREATED_EVENT, payload.email)
+    return result
 
 
 @user_router.post(
@@ -78,7 +84,7 @@ async def revalidate(payload: UserRevalidate):
 
 @user_router.post(
     "/account/invalidate",
-    response_model=APIResponse[dict],
+    response_model=UserManageRead,
     summary="Invalidate a session",
     description="Invalidate an existing session using a refresh token.",
 )
@@ -88,7 +94,7 @@ async def invalidate(payload: UserInvalidate):
 
 @user_router.post(
     "/account/manage/{action}",
-    response_model=APIResponse[UserAuthRead],
+    response_model=UserManageRead,
     summary="Manage user account actions",
     description="Perform management actions (like password reset or account recovery) on a user account.",
 )

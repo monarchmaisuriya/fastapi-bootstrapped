@@ -18,9 +18,14 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
 
+    # Email settings
+    SMTP_SERVER: str = ""
+    SMTP_PORT: int = 0
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_SENDER_EMAIL: str = ""
+
     # Logging settings
-    LOG_LEVEL: str = "DEBUG"
-    LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_DIR: str = "logs"
     LOG_FILE: str = "server.log"
     LOG_FILE_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
