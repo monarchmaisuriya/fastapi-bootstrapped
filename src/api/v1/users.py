@@ -26,20 +26,14 @@ user_service: UserService = UserService()
 
 
 @user_router.get(
-    "/account",
-    response_model=APIResponse[UserRead],
-    summary="Get current user info",
-    description="Fetch details of the authenticated user using their access token.",
+    "/account", response_model=APIResponse[UserRead], summary="Get current user info"
 )
 async def get(auth: Annotated[dict[str, Any], Depends(require_auth)]):
     return await user_service.get(auth["sub"])
 
 
 @user_router.patch(
-    "/account",
-    response_model=APIResponse[UserRead],
-    summary="Update user info",
-    description="Update the authenticated user's information such as name or profile settings.",
+    "/account", response_model=APIResponse[UserRead], summary="Update user info"
 )
 async def update(
     payload: UserUpdate, auth: Annotated[dict[str, Any], Depends(require_auth)]
@@ -51,7 +45,6 @@ async def update(
     "/account",
     response_model=APIResponse[UserRead],
     summary="Create a new user account",
-    description="Create a new user account using the provided details.",
 )
 @public_route
 async def create(payload: UserCreate):
@@ -65,7 +58,6 @@ async def create(payload: UserCreate):
     "/account/validate",
     response_model=APIResponse[UserAuthRead],
     summary="Validate user credentials",
-    description="Validate a user's login credentials and return authentication data.",
 )
 @public_route
 async def validate(payload: UserValidate):
@@ -76,27 +68,79 @@ async def validate(payload: UserValidate):
     "/account/revalidate",
     response_model=APIResponse[UserAuthRead],
     summary="Revalidate a session",
-    description="Revalidate an existing session using a refresh token.",
 )
 async def revalidate(payload: UserRevalidate):
     return await user_service.revalidate(payload)
 
 
 @user_router.post(
-    "/account/invalidate",
-    response_model=UserManageRead,
-    summary="Invalidate a session",
-    description="Invalidate an existing session using a refresh token.",
+    "/account/invalidate", response_model=UserManageRead, summary="Invalidate a session"
 )
 async def invalidate(payload: UserInvalidate):
     return await user_service.invalidate(payload)
 
 
 @user_router.post(
-    "/account/manage/{action}",
-    response_model=UserManageRead,
-    summary="Manage user account actions",
-    description="Perform management actions (like password reset or account recovery) on a user account.",
+    "/account/manage/start-email-verification", response_model=UserManageRead
 )
-async def manage(action: UserManageAction, payload: UserManage):
-    return await user_service.manage(action, payload)
+@public_route
+async def manage_start_email_verification(payload: UserManage):
+    return await user_service.manage(UserManageAction.START_EMAIL_VERIFICATION, payload)
+
+
+@user_router.post(
+    "/account/manage/finish-email-verification", response_model=UserManageRead
+)
+@public_route
+async def manage_finish_email_verification(payload: UserManage):
+    return await user_service.manage(
+        UserManageAction.FINISH_EMAIL_VERIFICATION, payload
+    )
+
+
+@user_router.post(
+    "/account/manage/start-email-authentication", response_model=UserManageRead
+)
+@public_route
+async def manage_start_email_authentication(payload: UserManage):
+    return await user_service.manage(
+        UserManageAction.START_EMAIL_AUTHENTICATION, payload
+    )
+
+
+@user_router.post(
+    "/account/manage/finish-email-authentication", response_model=UserManageRead
+)
+@public_route
+async def manage_finish_email_authentication(payload: UserManage):
+    return await user_service.manage(
+        UserManageAction.FINISH_EMAIL_AUTHENTICATION, payload
+    )
+
+
+@user_router.post("/account/manage/start-password-reset", response_model=UserManageRead)
+@public_route
+async def manage_start_password_reset(payload: UserManage):
+    return await user_service.manage(UserManageAction.START_PASSWORD_RESET, payload)
+
+
+@user_router.post(
+    "/account/manage/finish-password-reset", response_model=UserManageRead
+)
+@public_route
+async def manage_finish_password_reset(payload: UserManage):
+    return await user_service.manage(UserManageAction.FINISH_PASSWORD_RESET, payload)
+
+
+@user_router.post("/account/manage/update-email", response_model=UserManageRead)
+async def manage_update_email(
+    payload: UserManage,
+):
+    return await user_service.manage(UserManageAction.UPDATE_EMAIL, payload)
+
+
+@user_router.post("/account/manage/update-password", response_model=UserManageRead)
+async def manage_update_password(
+    payload: UserManage,
+):
+    return await user_service.manage(UserManageAction.UPDATE_PASSWORD, payload)

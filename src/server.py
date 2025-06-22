@@ -38,6 +38,11 @@ async def app_lifespan(server: FastAPI) -> AsyncGenerator[None, None]:  # noqa: 
 
 def app_middlewares():
     cors_origins = settings.CORS_ORIGINS.split(",") if settings.CORS_ORIGINS else ["*"]
+
+    def public_paths():
+        logger.info(f"Public paths: {get_public_paths(app)}")
+        return get_public_paths(app)
+
     return [
         (
             # CORS Middleware
@@ -51,7 +56,7 @@ def app_middlewares():
         ),
         (
             AuthenticateRequest,
-            {"public_paths_provider": lambda: get_public_paths(app)},
+            {"public_paths_provider": public_paths},
         ),
         (LogRequests, {}),
     ]
