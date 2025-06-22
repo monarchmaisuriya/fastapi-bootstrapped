@@ -21,7 +21,9 @@ class BaseModel(SQLModel):
 
     # Timestamp fields
     created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime | None = Field(default=None)
+    updated_at: datetime | None = Field(
+        default=None, sa_column_kwargs={"onupdate": utc_now}
+    )
 
     # Soft delete fields
     deleted_at: datetime | None = Field(default=None)
