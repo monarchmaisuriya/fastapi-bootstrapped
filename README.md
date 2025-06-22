@@ -49,6 +49,8 @@ cd fastapi-bootstrapped
 
 ```bash
 pdm venv create 3.10
+pdm use -f .venv
+pdm pdm venv activate
 pdm install
 ```
 
