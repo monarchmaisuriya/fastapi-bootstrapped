@@ -45,9 +45,10 @@ git clone https://github.com/monarchmaisuriya/fastapi-bootstrapped.git
 cd fastapi-bootstrapped
 ```
 
-2. Install dependencies:
+2. Setup and install dependencies:
 
 ```bash
+pdm venv create 3.10
 pdm install
 ```
 
