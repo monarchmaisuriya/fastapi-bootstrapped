@@ -17,10 +17,11 @@ from helpers.auth import (
     verify_password,
     verify_refresh_token,
 )
+from helpers.model import APIError, APIResponse
 from helpers.repository import BaseRepository
-from helpers.utils import APIError, APIResponse
 from models.users import (
     UserAuthRead,
+    UserAuthTokens,
     UserCreate,
     UserInvalidate,
     UserManage,
@@ -34,7 +35,7 @@ from models.users import (
 )
 
 
-class UserService(BaseRepository):
+class UserRespository(BaseRepository):
     async def create(self, payload: UserCreate) -> APIResponse[UserRead] | None:
         db: AsyncSession = await self.get_database_session()
         try:
@@ -53,7 +54,7 @@ class UserService(BaseRepository):
             db.add(user)
             await db.commit()
             await db.refresh(user)
-            data = UserRead.model_validate(user).model_dump()
+            data = UserRead.model_validate(user)
             return APIResponse[UserRead](data=data)
         except IntegrityError as e:
             await db.rollback()
@@ -67,7 +68,7 @@ class UserService(BaseRepository):
         skip: int = 0,
         limit: int = 20,
         exclude_deleted: bool = True,
-    ) -> APIResponse[UserRead] | None:
+    ) -> APIResponse[list[UserRead]] | None:
         db: AsyncSession = await self.get_database_session()
         try:
             filters = []
@@ -89,8 +90,8 @@ class UserService(BaseRepository):
             users = result.scalars().all()
 
             data = [UserRead.model_validate(user) for user in users]
-            return APIResponse[UserRead](
-                data=[item.model_dump() for item in data],
+            return APIResponse[list[UserRead]](
+                data=data,
                 meta={"skip": skip, "limit": limit, "count": len(data)},
             )
         finally:
@@ -111,7 +112,7 @@ class UserService(BaseRepository):
             if not user:
                 raise APIError(404, "User not found")
 
-            data = UserRead.model_validate(user).model_dump()
+            data = UserRead.model_validate(user)
             return APIResponse[UserRead](data=data)
         finally:
             await self.close_database_session()
@@ -150,7 +151,7 @@ class UserService(BaseRepository):
             db.add(user)
             await db.commit()
             await db.refresh(user)
-            data = UserRead.model_validate(user).model_dump()
+            data = UserRead.model_validate(user)
             return APIResponse[UserRead](data=data)
         except IntegrityError as e:
             await db.rollback()
@@ -168,7 +169,7 @@ class UserService(BaseRepository):
             if not user:
                 raise APIError(404, "User not found")
 
-            Users(user).soft_delete()
+            user.soft_delete()
             db.add(user)
             await db.commit()
             return APIResponse(message="User soft-deleted")
@@ -196,13 +197,13 @@ class UserService(BaseRepository):
             await db.commit()
             await db.refresh(user)
 
-            data = {
-                "auth": {
-                    "access_token": create_access_token(user.id),
-                    "refresh_token": create_refresh_token(user.id),
-                },
-                "user": UserRead.model_validate(user).model_dump(),
-            }
+            data = UserAuthRead(
+                auth=UserAuthTokens(
+                    access_token=create_access_token(user.email),
+                    refresh_token=create_refresh_token(user.email),
+                ),
+                user=UserRead.model_validate(user),
+            )
             return APIResponse[UserAuthRead](data=data)
         finally:
             await self.close_database_session()
@@ -231,13 +232,13 @@ class UserService(BaseRepository):
             if not user:
                 raise APIError(404, "User not found")
 
-            data = {
-                "auth": {
-                    "access_token": access_token,
-                    "refresh_token": new_refresh_token,
-                },
-                "user": UserRead.model_validate(user).model_dump(),
-            }
+            data = UserAuthRead(
+                auth=UserAuthTokens(
+                    access_token=access_token,
+                    refresh_token=new_refresh_token,
+                ),
+                user=UserRead.model_validate(user),
+            )
             return APIResponse[UserAuthRead](data=data)
         finally:
             await self.close_database_session()

@@ -1,12 +1,12 @@
 from helpers.logger import Logger
 from models.users import UserManage, UserManageAction
-from services.users import UserService
+from repositories.users import UserRespository
 
 logger = Logger(__name__)
 
 
 async def on_user_created(email: str):
-    user_service: UserService = UserService()
-    await user_service.manage(
+    user_respository: UserRespository = UserRespository()
+    await user_respository.manage(
         UserManageAction.START_EMAIL_VERIFICATION, UserManage(email=email)
     )
